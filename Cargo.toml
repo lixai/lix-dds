@@ -15,4 +15,3 @@ edition = "2018"
 [dependencies]
 bit-set = "0.5.2"
 speedy = "0.7.1"
-byteorder = "1.4.3"

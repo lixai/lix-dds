@@ -1,4 +1,4 @@
-use byteorder::ByteOrder;
+use std::mem;
 
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct EntityId_t {
@@ -155,18 +155,20 @@ impl EntityId_t {
 
     #[cfg(target_endian = "little")]
     pub fn new(id: u32) -> EntityId_t {
-        let index = 0;
-        let mut value: [u8; EntityId_t::SIZE] = [0, 0, 0, 0];
-        byteorder::NativeEndian::write_u32(&mut value[index..index + 4], id);
+        let mut value: [u8; EntityId_t::SIZE];
+        unsafe {
+            value = mem::transmute::<u32, [u8; EntityId_t::SIZE]>(id);
+        }
         EntityId_t::reverse(&mut value);
         EntityId_t { value }
     }
 
     #[cfg(target_endian = "big")]
     pub fn new(id: u32) -> EntityId_t {
-        let index = 0;
-        let mut value: [u8; EntityId_t::SIZE] = [0, 0, 0, 0];
-        byteorder::NativeEndian::write_u32(&mut value[index..index + 4], id);
+        let mut value: [u8; EntityId_t::SIZE];
+        unsafe {
+            value = mem::transmute::<u32, [u8; EntityId_t::SIZE]>(id);
+        }
         EntityId_t { value }
     }
 
