@@ -1,0 +1,18 @@
+[package]
+name = "lix-dds"
+version = "0.1.0"
+authors = ["Michael <311155@qq.com>"]
+description = "OMG DDS implement"
+repository = "https://gitee.com/lixai/lix-dds"
+homepage = "https://gitee.com/lixai/lix-dds"
+readme = "README.md"
+keywords = ["protocol", "DDS"]
+license = "Apache-2.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bit-set = "0.5.2"
+speedy = "0.7.1"
+byteorder = "1.4.3"
