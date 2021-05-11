@@ -139,7 +139,7 @@ impl EntityId_t {
 }
 
 impl EntityId_t {
-    pub fn unknown() -> EntityId_t {
+    pub fn unknown() -> Self {
         EntityId_t::c_EntityId_Unknown
     }
 
@@ -153,8 +153,18 @@ impl EntityId_t {
         value[1] = oaux;
     }
 
+    pub fn new() -> Self {
+        EntityId_t { value: [0; EntityId_t::SIZE] }
+    }
+
+    pub fn hash(k: &EntityId_t) -> usize {
+        (k.value[0] as usize) << 16 | (k.value[1] as usize) << 8 | (k.value[2] as usize)
+    }
+}
+
+impl From<u32> for EntityId_t {
     #[cfg(target_endian = "little")]
-    pub fn new(id: u32) -> EntityId_t {
+    fn from(id: u32) -> Self {
         let mut value: [u8; EntityId_t::SIZE];
         unsafe {
             value = mem::transmute::<u32, [u8; EntityId_t::SIZE]>(id);
@@ -164,35 +174,31 @@ impl EntityId_t {
     }
 
     #[cfg(target_endian = "big")]
-    pub fn new(id: u32) -> EntityId_t {
+    fn from(id: u32) -> Self {
         let mut value: [u8; EntityId_t::SIZE];
         unsafe {
             value = mem::transmute::<u32, [u8; EntityId_t::SIZE]>(id);
         }
         EntityId_t { value }
     }
-
-    pub fn hash(k: &EntityId_t) -> usize {
-        (k.value[0] as usize) << 16 | (k.value[1] as usize) << 8 | (k.value[2] as usize)
-    }
 }
 
 impl Default for EntityId_t {
-    fn default() -> EntityId_t {
+    fn default() -> Self {
         EntityId_t::c_EntityId_Unknown.clone()
     }
 }
 
 impl PartialEq<u32> for EntityId_t {
     fn eq(&self, other: &u32) -> bool {
-        let other_id = EntityId_t::new(*other);
+        let other_id = EntityId_t::from(*other);
         self == &other_id
     }
 }
 
 impl PartialEq<EntityId_t> for u32 {
     fn eq(&self, other: &EntityId_t) -> bool {
-        let self_id = EntityId_t::new(*self);
+        let self_id = EntityId_t::from(*self);
         self_id == *other
     }
 }
@@ -204,129 +210,129 @@ mod tests {
     #[test]
     fn entity_id_test() {
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_UNKNOWN).value,
+            EntityId_t::from(EntityId_t::ENTITYID_UNKNOWN).value,
             EntityId_t::c_EntityId_Unknown.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_RTPSParticipant).value,
+            EntityId_t::from(EntityId_t::ENTITYID_RTPSParticipant).value,
             EntityId_t::c_EntityId_RTPSParticipant.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SEDP_BUILTIN_TOPIC_WRITER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_SEDP_BUILTIN_TOPIC_WRITER).value,
             [0x00u8, 0x00u8, 0x02u8, 0xc2u8]
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SEDP_BUILTIN_TOPIC_READER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_SEDP_BUILTIN_TOPIC_READER).value,
             [0x00u8, 0x00u8, 0x02u8, 0xc7u8]
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER).value,
             EntityId_t::c_EntityId_SEDPPubWriter.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER).value,
             EntityId_t::c_EntityId_SEDPPubReader.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER).value,
             EntityId_t::c_EntityId_SEDPSubWriter.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER).value,
             EntityId_t::c_EntityId_SEDPSubReader.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SPDP_BUILTIN_RTPSParticipant_WRITER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_SPDP_BUILTIN_RTPSParticipant_WRITER).value,
             EntityId_t::c_EntityId_SPDPWriter.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SPDP_BUILTIN_RTPSParticipant_READER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_SPDP_BUILTIN_RTPSParticipant_READER).value,
             EntityId_t::c_EntityId_SPDPReader.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_P2P_BUILTIN_RTPSParticipant_MESSAGE_WRITER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_P2P_BUILTIN_RTPSParticipant_MESSAGE_WRITER).value,
             EntityId_t::c_EntityId_WriterLiveliness.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_P2P_BUILTIN_RTPSParticipant_MESSAGE_READER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_P2P_BUILTIN_RTPSParticipant_MESSAGE_READER).value,
             EntityId_t::c_EntityId_ReaderLiveliness.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_WRITER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_WRITER).value,
             EntityId_t::participant_stateless_message_writer_entity_id.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_READER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_READER).value,
             EntityId_t::participant_stateless_message_reader_entity_id.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_TL_SVC_REQ_WRITER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_TL_SVC_REQ_WRITER).value,
             EntityId_t::c_EntityId_TypeLookup_request_writer.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_TL_SVC_REQ_READER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_TL_SVC_REQ_READER).value,
             EntityId_t::c_EntityId_TypeLookup_request_reader.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_TL_SVC_REPLY_WRITER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_TL_SVC_REPLY_WRITER).value,
             EntityId_t::c_EntityId_TypeLookup_reply_writer.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_TL_SVC_REPLY_READER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_TL_SVC_REPLY_READER).value,
             EntityId_t::c_EntityId_TypeLookup_reply_reader.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER).value,
             EntityId_t::sedp_builtin_publications_secure_writer.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER).value,
             EntityId_t::sedp_builtin_publications_secure_reader.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER).value,
             EntityId_t::sedp_builtin_subscriptions_secure_writer.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER).value,
             EntityId_t::sedp_builtin_subscriptions_secure_reader.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER)
+            EntityId_t::from(EntityId_t::ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER)
                 .value,
             EntityId_t::c_EntityId_WriterLivelinessSecure.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER)
+            EntityId_t::from(EntityId_t::ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER)
                 .value,
             EntityId_t::c_EntityId_ReaderLivelinessSecure.value
         );
 
         assert_eq!(
-            EntityId_t::new(
+            EntityId_t::from(
                 EntityId_t::ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_WRITER
             )
             .value,
@@ -334,7 +340,7 @@ mod tests {
         );
 
         assert_eq!(
-            EntityId_t::new(
+            EntityId_t::from(
                 EntityId_t::ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_SECURE_READER
             )
             .value,
@@ -342,24 +348,24 @@ mod tests {
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER)
+            EntityId_t::from(EntityId_t::ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER)
                 .value,
             [0xffu8, 0x01u8, 0x01u8, 0xc2u8]
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER)
+            EntityId_t::from(EntityId_t::ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER)
                 .value,
             [0xffu8, 0x01u8, 0x01u8, 0xc7u8]
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_DS_SERVER_VIRTUAL_WRITER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_DS_SERVER_VIRTUAL_WRITER).value,
             EntityId_t::ds_server_virtual_writer.value
         );
 
         assert_eq!(
-            EntityId_t::new(EntityId_t::ENTITYID_DS_SERVER_VIRTUAL_READER).value,
+            EntityId_t::from(EntityId_t::ENTITYID_DS_SERVER_VIRTUAL_READER).value,
             EntityId_t::ds_server_virtual_reader.value
         );
     }

@@ -15,7 +15,7 @@ impl GUID_t {
 }
 
 impl GUID_t {
-    pub fn unknown() -> GUID_t {
+    pub fn unknown() -> Self {
         GUID_t {
             guidPrefix: GuidPrefix_t::unknown(),
             entityId: EntityId_t::unknown()

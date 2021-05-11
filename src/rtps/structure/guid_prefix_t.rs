@@ -12,7 +12,7 @@ impl GuidPrefix_t {
 }
 
 impl GuidPrefix_t {
-    pub const fn unknown() -> GuidPrefix_t {
+    pub const fn unknown() -> Self {
         GuidPrefix_t {
             value: [0x00; GuidPrefix_t::SIZE],
         }
@@ -20,7 +20,7 @@ impl GuidPrefix_t {
 }
 
 impl Default for GuidPrefix_t {
-    fn default() -> GuidPrefix_t {
+    fn default() -> Self {
         GuidPrefix_t::unknown()
     }
 }
