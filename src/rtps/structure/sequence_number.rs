@@ -47,7 +47,7 @@ impl AddAssign<i32> for SequenceNumber_t {
     fn add_assign(&mut self, inc: i32) {
         assert!(inc >= 0);
         let aux_low = self.low;
-        self.low += inc as u32;
+        self.low = self.low.wrapping_add(inc as u32);
         if self.low < aux_low {
             self.high += 1;
         };
@@ -129,7 +129,300 @@ mod tests {
     use super::*;
 
     #[test]
-    fn compare_test() {
+    fn incremental_operator_test() {
+        let mut seq = SequenceNumber_t::new(0, u32::MAX);
+        seq = seq + 1;
+        let mut expected_seq = SequenceNumber_t::new(1, 0);
+
+        assert_eq!(seq, expected_seq);
+        seq = seq + 1;
+        expected_seq.low = 1;
+        assert_eq!(seq, expected_seq);
+    }
+
+    #[test]
+    fn addition_assigment_operator_test() {
+        let mut seq = SequenceNumber_t::new(3, u32::MAX - 3);
+        seq += 7;
+        let mut expected_seq = SequenceNumber_t::new(4, 3);
+
+        assert_eq!(seq, expected_seq);
+        seq += i32::MAX;
+        expected_seq.low = i32::MAX as u32;
+        expected_seq.low += 3;
+        assert_eq!(seq, expected_seq);
+
+        seq += i32::MAX;
+
+        expected_seq.high = 5;
+        expected_seq.low = 1;
+        assert_eq!(seq, expected_seq);
+
+        seq.high = i32::MAX - 1;
+        seq.low = 0;
+        seq += i32::MAX;
+        expected_seq.high = i32::MAX - 1;
+        expected_seq.low = i32::MAX as u32;
+        assert_eq!(seq, expected_seq);
+
+        seq += i32::MAX;
+        expected_seq.low = u32::MAX - 1;
+        assert_eq!(seq, expected_seq);
+
+        seq += i32::MAX;
+        expected_seq.high = i32::MAX;
+        expected_seq.low = i32::MAX as u32 - 2;
+        assert_eq!(seq, expected_seq);
+    }
+
+    #[test]
+    fn equal_operator_test() {
+        let mut seq = SequenceNumber_t::new(10, 4356);
+        let seq2 = SequenceNumber_t::new(10, 4356);
+
+        assert_eq!(seq == seq2, true);
+
+        seq.high = 345;
+        assert_eq!(seq == seq2, false);
+
+        seq.high = 1;
+        assert_eq!(seq == seq2, false);
+
+        seq.high = 10;
+        seq.low = 60000;
+        assert_eq!(seq == seq2, false);
+
+        seq.low = 100;
+        assert_eq!(seq == seq2, false);
+    }
+
+    #[test]
+    fn not_equal_operator_test() {
+        let mut seq = SequenceNumber_t::new(10, 4356);
+        let seq2 = SequenceNumber_t::new(10, 4356);
+
+        assert_eq!(seq != seq2, false);
+
+        seq.high = 345;
+        assert_eq!(seq != seq2, true);
+
+        seq.high = 1;
+        assert_eq!(seq != seq2, true);
+
+        seq.high = 10;
+        seq.low = 60000;
+        assert_eq!(seq != seq2, true);
+
+        seq.low = 100;
+        assert_eq!(seq != seq2, true);
+    }
+
+    #[test]
+    fn greater_than_operator_test() {
+        let mut seq = SequenceNumber_t::new(10, 4356);
+        let seq2 = SequenceNumber_t::new(10, 4356);
+
+        assert_eq!(seq > seq2, false);
+
+        seq.high = 345;
+        assert_eq!(seq > seq2, true);
+
+        seq.high = 1;
+        assert_eq!(seq > seq2, false);
+
+        seq.high = 10;
+        seq.low = 60000;
+        assert_eq!(seq > seq2, true);
+
+        seq.low = 100;
+        assert_eq!(seq > seq2, false);
+    }
+
+    #[test]
+    fn less_than_operator_test() {
+        let mut seq = SequenceNumber_t::new(10, 4356);
+        let seq2 = SequenceNumber_t::new(10, 4356);
+
+        assert_eq!(seq < seq2, false);
+
+        seq.high = 345;
+        assert_eq!(seq < seq2, false);
+
+        seq.high = 1;
+        assert_eq!(seq < seq2, true);
+
+        seq.high = 10;
+        seq.low = 60000;
+        assert_eq!(seq < seq2, false);
+
+        seq.low = 100;
+        assert_eq!(seq < seq2, true);
+    }
+
+    #[test]
+    fn greater_than_or_equal_operator_test() {
+        let mut seq = SequenceNumber_t::new(10, 4356);
+        let seq2 = SequenceNumber_t::new(10, 4356);
+
+        assert_eq!(seq >= seq2, true);
+
+        seq.high = 345;
+        assert_eq!(seq >= seq2, true);
+
+        seq.high = 1;
+        assert_eq!(seq >= seq2, false);
+
+        seq.high = 10;
+        seq.low = 60000;
+        assert_eq!(seq >= seq2, true);
+
+        seq.low = 100;
+        assert_eq!(seq >= seq2, false);
+    }
+
+    #[test]
+    fn less_than_or_equal_operator_test() {
+        let mut seq = SequenceNumber_t::new(10, 4356);
+        let seq2 = SequenceNumber_t::new(10, 4356);
+
+        assert_eq!(seq <= seq2, true);
+
+        seq.high = 345;
+        assert_eq!(seq <= seq2, false);
+
+        seq.high = 1;
+        assert_eq!(seq <= seq2, true);
+
+        seq.high = 10;
+        seq.low = 60000;
+        assert_eq!(seq <= seq2, false);
+
+        seq.low = 100;
+        assert_eq!(seq <= seq2, true);
+    }
+
+    #[test]
+    fn subtraction_operator_test() {
+        let mut seq = SequenceNumber_t::new(4, 3);
+        seq = seq - 7;
+
+        let mut expected_seq = SequenceNumber_t::new(3, u32::MAX - 3);
+
+        assert_eq!(seq, expected_seq);
+
+        seq.high = i32::MAX;
+        seq.low = u32::MAX - 1;
+        seq = seq - i32::MAX as u32;
+
+        expected_seq.high = i32::MAX;
+        expected_seq.low = i32::MAX as u32;
+        assert_eq!(seq, expected_seq);
+
+        seq.high = 25;
+        seq.low = u32::MAX;
+        seq = seq - u32::MAX;
+
+        expected_seq.high = 25;
+        expected_seq.low = 0;
+        assert_eq!(seq, expected_seq);
+
+        seq = seq - u32::MAX;
+
+        expected_seq.high = 24;
+        expected_seq.low = 1;
+
+        assert_eq!(seq, expected_seq);
+    }
+
+    #[test]
+    fn addition_operator() {
+        let mut seq = SequenceNumber_t::new(3, u32::MAX - 3);
+        seq = seq + 7;
+
+        let mut expected_seq = SequenceNumber_t::new(4, 3);
+
+        assert_eq!(seq, expected_seq);
+
+        seq = seq + i32::MAX as u32;
+        expected_seq.low = i32::MAX as u32;
+        expected_seq.low += 3;
+        assert_eq!(seq, expected_seq);
+
+        seq = seq + i32::MAX as u32;
+        expected_seq.high = 5;
+        expected_seq.low = 1;
+        assert_eq!(seq, expected_seq);
+
+        seq.high = i32::MAX - 1;
+        seq.low = 0;
+        seq = seq +  i32::MAX as u32;
+        expected_seq.high = i32::MAX - 1;
+        expected_seq.low = i32::MAX as u32;
+        assert_eq!(seq, expected_seq);
+
+        seq = seq + i32::MAX as u32;
+        expected_seq.low = u32::MAX - 1;
+        assert_eq!(seq, expected_seq);
+
+        seq = seq + i32::MAX as u32;
+        expected_seq.high = i32::MAX;
+        expected_seq.low = i32::MAX as u32 - 2;
+        assert_eq!(seq, expected_seq);
+
+        seq.high = 24;
+        seq.low = 1;
+        seq = seq + u32::MAX;
+        expected_seq.high = 25;
+        expected_seq.low = 0;
+        assert_eq!(seq, expected_seq);
+
+        seq = seq + u32::MAX;
+        expected_seq.low = u32::MAX;
+        assert_eq!(seq, expected_seq);
+    }
+
+    #[test]
+    fn subtraction_between_ses_operator_test() {
+        let mut minuend = SequenceNumber_t::new(4, 3);
+        let mut subtrahend = SequenceNumber_t::new(0, 7);
+        let mut res = minuend - subtrahend;
+        let mut expected_seq = SequenceNumber_t::new(3, u32::MAX - 3);
+
+        assert_eq!(res, expected_seq);
+
+        minuend.high = i32::MAX;
+        minuend.low = u32::MAX - 1;
+
+        subtrahend.high = 0;
+        subtrahend.low = i32::MAX as u32;
+
+        res = minuend - subtrahend;
+
+        expected_seq.high = i32::MAX;
+        expected_seq.low = i32::MAX as u32;
+        assert_eq!(res, expected_seq);
+
+        minuend.high = 25;
+        minuend.low = u32::MAX;
+
+        subtrahend.high = 0;
+        subtrahend.low = u32::MAX;
+
+        res = minuend - subtrahend;
+
+        expected_seq.high = 25;
+        expected_seq.low = 0;
+        assert_eq!(res, expected_seq);
+
+        res = res - subtrahend;
+
+        expected_seq.high = 24;
+        expected_seq.low = 1;
+        assert_eq!(res, expected_seq);
+    }
+
+    #[test]
+    fn common_test() {
         let mut s1 = SequenceNumber_t { high: 1, low: 1 };
         let mut s2 = SequenceNumber_t { high: 1, low: 1 };
         assert_eq!(s1 == s2, true);
