@@ -1,22 +1,12 @@
 # LixDDS
 
 #### Description
-{**When you're done, you can delete the content in this README and update the file with details for others getting started with your repository**}
+Develop a DDS system with Rust that can be applied in a cross-platform environment.  
+Anyone interested in DDS and Rust is welcome to contribute code.
 
-#### Software Architecture
-Software architecture description
-
-#### Installation
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### Instructions
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
+#### Specification
+1. 《Data Distribution Service (DDS)》Version 1.4  
+2. 《The Real-time Publish-Subscribe Protocol DDS Interoperability Wire Protocol (DDSI-RTPS) Specification》Version 2.3
 
 #### Contribution
 
@@ -25,12 +15,5 @@ Software architecture description
 3.  Commit your code
 4.  Create Pull Request
 
-
-#### Gitee Feature
-
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+#### License
+Apache 2.0
