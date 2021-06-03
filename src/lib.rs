@@ -6,6 +6,8 @@
 
 extern crate bit_set;
 extern crate speedy;
+extern crate bitintr;
 
 #[macro_use]
 mod rtps;
+mod dds;
