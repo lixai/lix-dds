@@ -26,6 +26,16 @@ impl BitmapRange {
         }
     }
 
+    pub fn new_from_base(base: u32) -> Self {
+        let range_max: u32 = base + (BitmapRange::NBITS as u32 - 1);
+        Self {
+            base: base,
+            range_max: range_max,
+            bitmap: [0; BitmapRange::NITEMS],
+            num_bits: 0,
+        }
+    }
+
     pub fn base(&self) -> u32 {
         return self.base;
     }
@@ -49,6 +59,9 @@ impl BitmapRange {
             let n_bits = BitmapRange::d_func(self.base, base);
             self.shift_map_right(n_bits);
         }
+
+        self.base = base;
+        self.range_max = self.base + (BitmapRange::NBITS as u32 - 1);
     }
 
     pub fn empty(&self) -> bool {
@@ -56,7 +69,7 @@ impl BitmapRange {
     }
 
     pub fn max(&self) -> u32 {
-        return self.base - (self.num_bits - 1);
+        return self.base.wrapping_add(self.num_bits.wrapping_sub(1));
     }
 
     pub fn min(&self) -> u32 {
@@ -165,14 +178,16 @@ impl BitmapRange {
         self.num_bits = cmp::min(num_bits, BitmapRange::NBITS as u32);
         let num_items = (self.num_bits + 31u32) / 32u32;
         self.bitmap.fill(0u32);
-        self.bitmap[..num_items as usize].clone_from_slice(bitmap);
+        for i in 0..num_items {
+            self.bitmap[i as usize] = bitmap[i as usize];
+        }
         if 0 < num_bits {
             self.bitmap[num_items as usize - 1] &= !(u32::MAX >> (num_bits & 31u32));
         }
         self.calc_maximum_bit_set(num_items, 0);
     }
 
-    pub fn for_each(&mut self, f: fn(u32)->()) {
+    pub fn for_each<F: FnMut(u32) -> ()>(&mut self, mut f: F) {
         let mut item = self.base;
         // Traverse through the significant items on the bitmap
         let n_longs = (self.num_bits + 31) / 32;
@@ -229,10 +244,14 @@ impl BitmapRange {
                 let overflow_bits = 32u32 - n_bits;
                 let last_index = BitmapRange::NITEMS - 1usize;
                 let mut i: usize = 0;
-                for n in n_items as usize..last_index {
-                    self.bitmap[i] = (self.bitmap[n] << n_bits) | (self.bitmap[n + 1] >> overflow_bits);
+                let mut n: usize = n_items as usize;
+                while n < last_index {
+                    self.bitmap[i] =
+                        (self.bitmap[n] << n_bits) | (self.bitmap[n + 1] >> overflow_bits);
                     i += 1;
+                    n += 1;
                 }
+
                 // Last one does not have next word
                 self.bitmap[last_index - n_items as usize] = self.bitmap[last_index] << n_bits;
                 // Last n_items will become 0
@@ -257,7 +276,8 @@ impl BitmapRange {
             n_bits &= 31;
             if n_bits == 0 {
                 // Shifting a multiple of 32 bits, just move the bitmap integers
-                self.bitmap.copy_within(..BitmapRange::NITEMS - n_items  as usize, n_items as usize);
+                self.bitmap
+                    .copy_within(..BitmapRange::NITEMS - n_items as usize, n_items as usize);
                 self.bitmap[..n_items as usize].fill(0);
             } else {
                 // Example. Shifting 44 bits. Should shift one complete word and 12 bits.
@@ -270,9 +290,12 @@ impl BitmapRange {
                 let overflow_bits = 32 - n_bits;
                 let last_index = BitmapRange::NITEMS - 1;
                 let mut i = last_index;
-                for n in last_index - n_items as usize .. 0 {
-                    self.bitmap[i] = (self.bitmap[n] >> n_bits) | (self.bitmap[n - 1] << overflow_bits);
+                let mut n: usize = last_index - n_items as usize;
+                while n > 0 {
+                    self.bitmap[i] =
+                        (self.bitmap[n] >> n_bits) | (self.bitmap[n - 1] << overflow_bits);
                     i -= 1;
+                    n -= 1;
                 }
                 // First item does not have previous word
                 self.bitmap[n_items as usize] = self.bitmap[0] >> n_bits;
@@ -289,7 +312,10 @@ impl BitmapRange {
 
     fn calc_maximum_bit_set(&mut self, starting_index: u32, min_index: u32) {
         self.num_bits = 0;
-        for i in starting_index as usize..min_index as usize {
+        let mut i: usize = starting_index as usize;
+        let end: usize = min_index as usize;
+        while i > end {
+            i -= 1;
             let mut bits = self.bitmap[i as usize];
             if bits != 0 {
                 bits = bits & !(bits - 1);
@@ -304,7 +330,9 @@ impl BitmapRange {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
 
+    #[derive(Copy, Clone, Debug)]
     struct TestResult {
         result: bool,
         min: u32,
@@ -343,7 +371,8 @@ mod tests {
                     return false;
                 }
             }
-            return self.bitmap[..self.num_longs as usize] == check.bitmap[..self.num_longs as usize];
+            return self.bitmap[..self.num_longs as usize]
+                == check.bitmap[..self.num_longs as usize];
         }
     }
 
@@ -387,66 +416,500 @@ mod tests {
         }
     }
 
-    struct TestStep {
-        input: TestInputAdd,
+    struct TestStep<T: InputType> {
+        input: T,
         expected_result: TestResult,
     }
 
-    struct TestCase {
+    struct TestCase<T: InputType> {
         initialization: TestResult,
-        steps: Vec<TestStep>,
+        steps: Vec<TestStep<T>>,
     }
 
-    impl TestCase {
+    impl<T: InputType> TestCase<T> {
         fn Test(&mut self, base: u32, uut: &mut BitmapRange) {
-            assert_eq!(self.initialization.Check(self.initialization.result, uut), true);
+            assert_eq!(
+                self.initialization.Check(self.initialization.result, uut),
+                true
+            );
 
             for step in self.steps.iter_mut() {
                 let result = step.input.perform_input(base, uut);
                 assert_eq!(step.expected_result.Check(result, uut), true);
-                assert_eq!(base + step.expected_result.num_bits - 1, uut.max());
+                assert_eq!(
+                    base.wrapping_add(step.expected_result.num_bits.wrapping_sub(1)),
+                    uut.max()
+                );
             }
         }
     }
 
     struct BitmapRangeTests {
-        test0: TestCase,
+        test0: TestCase<TestInputAdd>,
     }
 
     impl BitmapRangeTests {
         const explicit_base: u32 = 123;
         const sliding_base: u32 = 513;
 
-        fn new_test_input_add() -> Self {
+        fn new_test_input_add() -> TestCase<TestInputAdd> {
             let mut steps = Vec::new();
-            let test_input_add = TestInputAdd {
-                offset: 0,
+            let adding_base_step: TestStep<TestInputAdd> = TestStep {
+                input: TestInputAdd { offset: 0 },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 0,
+                    num_bits: 1,
+                    num_longs: 1,
+                    bitmap: [0x80000000u32, 0, 0, 0, 0, 0, 0, 0],
+                },
             };
+            steps.push(adding_base_step);
 
-            let test_result = TestResult {
-                result: true,
-                min: 0,
-                max: 0,
-                num_bits: 1,
-                num_longs: 1,
-                bitmap: [0x80000000u32, 0, 0, 0, 0, 0, 0, 0],
+            let adding_base_again_step: TestStep<TestInputAdd> = TestStep {
+                input: TestInputAdd { offset: 0 },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 0,
+                    num_bits: 1,
+                    num_longs: 1,
+                    bitmap: [0x80000000u32, 0, 0, 0, 0, 0, 0, 0],
+                },
             };
+            steps.push(adding_base_again_step);
 
-            let test_step: TestStep = TestStep {
-                input: test_input_add,
-                expected_result: test_result,
+            let adding_out_of_range_step: TestStep<TestInputAdd> = TestStep {
+                input: TestInputAdd { offset: 256 },
+                expected_result: TestResult {
+                    result: false,
+                    min: 0,
+                    max: 0,
+                    num_bits: 1,
+                    num_longs: 1,
+                    bitmap: [0x80000000u32, 0, 0, 0, 0, 0, 0, 0],
+                },
             };
+            steps.push(adding_out_of_range_step);
 
-            steps.push(test_step);
+            let middle_of_first_word_step: TestStep<TestInputAdd> = TestStep {
+                input: TestInputAdd { offset: 16 },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 16,
+                    num_bits: 17,
+                    num_longs: 1,
+                    bitmap: [0x80008000u32, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(middle_of_first_word_step);
+
+            let before_previous_one_step: TestStep<TestInputAdd> = TestStep {
+                input: TestInputAdd { offset: 15 },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 16,
+                    num_bits: 17,
+                    num_longs: 1,
+                    bitmap: [0x80018000u32, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(before_previous_one_step);
+
+            let on_third_word_step: TestStep<TestInputAdd> = TestStep {
+                input: TestInputAdd { offset: 67 },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 67,
+                    num_bits: 68,
+                    num_longs: 3,
+                    bitmap: [0x80018000u32, 0, 0x10000000u32, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(on_third_word_step);
+
+            let before_last_on_third_word_step: TestStep<TestInputAdd> = TestStep {
+                input: TestInputAdd { offset: 94 },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 94,
+                    num_bits: 95,
+                    num_longs: 3,
+                    bitmap: [0x80018000u32, 0, 0x10000002u32, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(before_last_on_third_word_step);
+
+            let last_on_third_word_step: TestStep<TestInputAdd> = TestStep {
+                input: TestInputAdd { offset: 95 },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 95,
+                    num_bits: 96,
+                    num_longs: 3,
+                    bitmap: [0x80018000u32, 0, 0x10000003u32, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(last_on_third_word_step);
+
+            let last_possible_item_step: TestStep<TestInputAdd> = TestStep {
+                input: TestInputAdd { offset: 255 },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 255,
+                    num_bits: 256,
+                    num_longs: 8,
+                    bitmap: [0x80018000u32, 0, 0x10000003u32, 0, 0, 0, 0, 0x00000001u32],
+                },
+            };
+            steps.push(last_possible_item_step);
 
             let test_case = TestCase {
                 initialization: TestResult::new(),
-                steps: steps
+                steps: steps,
             };
 
-            Self {
-                test0: test_case,
-            }
+            test_case
+        }
+
+        const all_ones: TestResult = TestResult {
+            result: true,
+            min: 0,
+            max: 255,
+            num_bits: 256,
+            num_longs: 8,
+            bitmap: [
+                0xFFFFFFFFu32,
+                0xFFFFFFFFu32,
+                0xFFFFFFFFu32,
+                0xFFFFFFFFu32,
+                0xFFFFFFFFu32,
+                0xFFFFFFFFu32,
+                0xFFFFFFFFu32,
+                0xFFFFFFFFu32,
+            ],
+        };
+
+        fn new_test_range0() -> TestCase<TestInputAddRange> {
+            let mut steps = Vec::new();
+            let empty_input_step: TestStep<TestInputAddRange> = TestStep {
+                input: TestInputAddRange {
+                    offset_from: 0,
+                    offset_to: 0,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 0,
+                    num_bits: 0,
+                    num_longs: 0,
+                    bitmap: [0, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(empty_input_step);
+
+            let adding_base_step: TestStep<TestInputAddRange> = TestStep {
+                input: TestInputAddRange {
+                    offset_from: 0,
+                    offset_to: 1,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 0,
+                    num_bits: 1,
+                    num_longs: 1,
+                    bitmap: [0x80000000, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(adding_base_step);
+
+            let wrong_order_params_step: TestStep<TestInputAddRange> = TestStep {
+                input: TestInputAddRange {
+                    offset_from: 10,
+                    offset_to: 1,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 0,
+                    num_bits: 1,
+                    num_longs: 1,
+                    bitmap: [0x80000000, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(wrong_order_params_step);
+
+            let adding_out_of_range_step: TestStep<TestInputAddRange> = TestStep {
+                input: TestInputAddRange {
+                    offset_from: 256,
+                    offset_to: 257,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 0,
+                    num_bits: 1,
+                    num_longs: 1,
+                    bitmap: [0x80000000, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(adding_out_of_range_step);
+
+            let middle_of_first_word_step: TestStep<TestInputAddRange> = TestStep {
+                input: TestInputAddRange {
+                    offset_from: 15,
+                    offset_to: 17,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 16,
+                    num_bits: 17,
+                    num_longs: 1,
+                    bitmap: [0x80018000, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(middle_of_first_word_step);
+
+            let on_second_and_third_word_step: TestStep<TestInputAddRange> = TestStep {
+                input: TestInputAddRange {
+                    offset_from: 35,
+                    offset_to: 68,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 67,
+                    num_bits: 68,
+                    num_longs: 3,
+                    bitmap: [0x80018000, 0x1FFFFFFF, 0xF0000000, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(on_second_and_third_word_step);
+
+            let crossing_more_than_one_word_step: TestStep<TestInputAddRange> = TestStep {
+                input: TestInputAddRange {
+                    offset_from: 94,
+                    offset_to: 133,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 132,
+                    num_bits: 133,
+                    num_longs: 5,
+                    bitmap: [
+                        0x80018000, 0x1FFFFFFF, 0xF0000003, 0xFFFFFFFF, 0xF8000000, 0, 0, 0,
+                    ],
+                },
+            };
+            steps.push(crossing_more_than_one_word_step);
+
+            let exactly_one_word_step: TestStep<TestInputAddRange> = TestStep {
+                input: TestInputAddRange {
+                    offset_from: 64,
+                    offset_to: 96,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 132,
+                    num_bits: 133,
+                    num_longs: 5,
+                    bitmap: [
+                        0x80018000, 0x1FFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xF8000000, 0, 0, 0,
+                    ],
+                },
+            };
+            steps.push(exactly_one_word_step);
+
+            let exactly_two_words_step: TestStep<TestInputAddRange> = TestStep {
+                input: TestInputAddRange {
+                    offset_from: 128,
+                    offset_to: 192,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 191,
+                    num_bits: 192,
+                    num_longs: 6,
+                    bitmap: [
+                        0x80018000, 0x1FFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0,
+                        0,
+                    ],
+                },
+            };
+            steps.push(exactly_two_words_step);
+
+            let full_range_step: TestStep<TestInputAddRange> = TestStep {
+                input: TestInputAddRange {
+                    offset_from: 0,
+                    offset_to: 512,
+                },
+                expected_result: BitmapRangeTests::all_ones,
+            };
+            steps.push(full_range_step);
+
+            let test_case = TestCase {
+                initialization: TestResult::new(),
+                steps: steps,
+            };
+
+            test_case
+        }
+
+        fn new_test_remove0() -> TestCase<TestInputRemove> {
+            let mut steps = Vec::new();
+            let removing_out_of_range_step: TestStep<TestInputRemove> = TestStep {
+                input: TestInputRemove {
+                    offset_begin: 32,
+                    offset_end: 33,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 31,
+                    num_bits: 32,
+                    num_longs: 1,
+                    bitmap: [0xFFFFFFFF, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(removing_out_of_range_step);
+
+            let removing_single_in_the_middle_step: TestStep<TestInputRemove> = TestStep {
+                input: TestInputRemove {
+                    offset_begin: 5,
+                    offset_end: 6,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 31,
+                    num_bits: 32,
+                    num_longs: 1,
+                    bitmap: [0xFBFFFFFF, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(removing_single_in_the_middle_step);
+
+            let removing_several_in_the_middle_step: TestStep<TestInputRemove> = TestStep {
+                input: TestInputRemove {
+                    offset_begin: 6,
+                    offset_end: 31,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 31,
+                    num_bits: 32,
+                    num_longs: 1,
+                    bitmap: [0xF8000001, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(removing_several_in_the_middle_step);
+
+            let removing_last_step: TestStep<TestInputRemove> = TestStep {
+                input: TestInputRemove {
+                    offset_begin: 31,
+                    offset_end: 32,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 4,
+                    num_bits: 5,
+                    num_longs: 1,
+                    bitmap: [0xF8000000, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(removing_last_step);
+
+            let removing_first_step: TestStep<TestInputRemove> = TestStep {
+                input: TestInputRemove {
+                    offset_begin: 0,
+                    offset_end: 1,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 1,
+                    max: 4,
+                    num_bits: 5,
+                    num_longs: 1,
+                    bitmap: [0x78000000, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(removing_first_step);
+
+            let removing_all_except_first_and_last_step: TestStep<TestInputRemove> = TestStep {
+                input: TestInputRemove {
+                    offset_begin: 2,
+                    offset_end: 4,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 1,
+                    max: 4,
+                    num_bits: 5,
+                    num_longs: 1,
+                    bitmap: [0x48000000, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(removing_all_except_first_and_last_step);
+
+            let removing_last_2_step: TestStep<TestInputRemove> = TestStep {
+                input: TestInputRemove {
+                    offset_begin: 4,
+                    offset_end: 5,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 1,
+                    max: 1,
+                    num_bits: 2,
+                    num_longs: 1,
+                    bitmap: [0x40000000, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(removing_last_2_step);
+
+            let removing_first_2_step: TestStep<TestInputRemove> = TestStep {
+                input: TestInputRemove {
+                    offset_begin: 1,
+                    offset_end: 2,
+                },
+                expected_result: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 0,
+                    num_bits: 0,
+                    num_longs: 0,
+                    bitmap: [0, 0, 0, 0, 0, 0, 0, 0],
+                },
+            };
+            steps.push(removing_first_2_step);
+
+            let test_case = TestCase {
+                initialization: TestResult {
+                    result: true,
+                    min: 0,
+                    max: 31,
+                    num_bits: 32,
+                    num_longs: 1,
+                    bitmap: [0xFFFFFFFF, 0, 0, 0, 0, 0, 0, 0],
+                },
+                steps,
+            };
+
+            test_case
         }
     }
 
@@ -454,6 +917,142 @@ mod tests {
     fn default_constructor_test() {
         let mut uut: BitmapRange = BitmapRange::new();
         let mut test = BitmapRangeTests::new_test_input_add();
-        test.test0.Test(0u32, &mut uut);
+        test.Test(0u32, &mut uut);
+    }
+
+    #[test]
+    fn explicit_constructor_test() {
+        let mut uut: BitmapRange = BitmapRange::new_from_base(BitmapRangeTests::explicit_base);
+        let mut test = BitmapRangeTests::new_test_input_add();
+        test.Test(BitmapRangeTests::explicit_base, &mut uut);
+    }
+
+    #[test]
+    fn range_default_constructor_test() {
+        let mut uut: BitmapRange = BitmapRange::new();
+        let mut test = BitmapRangeTests::new_test_range0();
+        test.Test(0u32, &mut uut);
+    }
+
+    #[test]
+    fn range_explicit_constructor_test() {
+        let mut uut: BitmapRange = BitmapRange::new_from_base(BitmapRangeTests::explicit_base);
+        let mut test = BitmapRangeTests::new_test_range0();
+        test.Test(BitmapRangeTests::explicit_base, &mut uut);
+    }
+
+    #[test]
+    fn change_base_test() {
+        let mut uut: BitmapRange = BitmapRange::new();
+        let mut test = BitmapRangeTests::new_test_input_add();
+        test.Test(0u32, &mut uut);
+
+        // Change base and test again
+        uut.from_base(BitmapRangeTests::explicit_base);
+        test.Test(BitmapRangeTests::explicit_base, &mut uut);
+    }
+
+    #[test]
+    fn full_range_test() {
+        let mut uut: BitmapRange = BitmapRange::new_from_base(BitmapRangeTests::explicit_base);
+
+        // Add all possible items in range
+        for item in BitmapRangeTests::explicit_base..BitmapRangeTests::explicit_base + 256 {
+            assert_eq!(uut.add(&item), true);
+        }
+        BitmapRangeTests::all_ones.Check(BitmapRangeTests::all_ones.result, &uut);
+    }
+
+    #[test]
+    fn serialization_test() {
+        let mut num_bits: u32 = 0;
+        let mut num_longs: u32 = 0;
+        let mut bitmap: bitmap_type = [0; BitmapRange::NITEMS];
+
+        // Populate the range using the test case
+        let mut uut: BitmapRange = BitmapRange::new_from_base(BitmapRangeTests::explicit_base);
+        let mut test = BitmapRangeTests::new_test_input_add();
+        test.Test(BitmapRangeTests::explicit_base, &mut uut);
+
+        // Get bitmap serialization and set it again
+        uut.bitmap_get(&mut num_bits, &mut bitmap, &mut num_longs);
+        uut.bitmap_set(num_bits, &bitmap);
+
+        // Bitmap should be equal to the one of the last result
+        let last_result = test.steps.iter().rev().next().unwrap().expected_result;
+        last_result.Check(last_result.result, &uut);
+
+        num_bits = 20;
+        num_longs = 1;
+        bitmap.fill(u32::MAX);
+        uut.bitmap_set(num_bits, &bitmap);
+        uut.bitmap_get(&mut num_bits, &mut bitmap, &mut num_longs);
+        assert_eq!(num_bits, 20);
+        assert_eq!(num_longs, 1);
+        assert_eq!(bitmap[0], 0xFFFFF000);
+    }
+
+    #[test]
+    fn traversal_test() {
+        // Populate the range using the test case
+        let mut uut: BitmapRange = BitmapRange::new_from_base(BitmapRangeTests::explicit_base);
+        let mut test = BitmapRangeTests::new_test_input_add();
+        test.Test(BitmapRangeTests::explicit_base, &mut uut);
+
+        // Collect the items that should be processed
+        let mut items: HashSet<u32> = HashSet::new();
+        for step in test.steps.iter_mut() {
+            if step.expected_result.result {
+                items.insert(BitmapRangeTests::explicit_base + step.input.offset);
+            }
+        }
+
+        uut.for_each(|t: u32| -> () {
+            assert_eq!(items.contains(&t), true);
+            items.remove(&t);
+        });
+
+        assert_eq!(items.is_empty(), true);
+    }
+
+    #[test]
+    fn sliding_window_test() {
+        let mut uut: BitmapRange = BitmapRange::new_from_base(BitmapRangeTests::sliding_base);
+        uut.add(&BitmapRangeTests::sliding_base);
+
+        // Check shifting right and then left
+        for i in 0..256u32 {
+            uut.base_update(BitmapRangeTests::sliding_base - i);
+            assert_eq!(uut.max(), BitmapRangeTests::sliding_base);
+            uut.base_update(BitmapRangeTests::sliding_base);
+            assert_eq!(uut.max(), BitmapRangeTests::sliding_base);
+        }
+
+        // Check shifting left and then right
+        for i in 0..256u32 {
+            uut.base_update(BitmapRangeTests::sliding_base - i);
+            assert_eq!(uut.max(), BitmapRangeTests::sliding_base);
+            uut.base_update(BitmapRangeTests::sliding_base - 255);
+            assert_eq!(uut.max(), BitmapRangeTests::sliding_base);
+        }
+
+        // Check cases dropping the most significant bit
+        let v = BitmapRangeTests::sliding_base - 100u32;
+        uut.add(&v);
+        uut.base_update(BitmapRangeTests::sliding_base - 256);
+        assert_eq!(uut.max(), BitmapRangeTests::sliding_base - 100);
+        uut.base_update(0);
+        assert!(uut.empty());
+    }
+
+    #[test]
+    fn remove_test() {
+        let mut uut: BitmapRange = BitmapRange::new_from_base(BitmapRangeTests::explicit_base);
+        uut.add_range(
+            &BitmapRangeTests::explicit_base,
+            &(BitmapRangeTests::explicit_base + 32),
+        );
+        let mut test = BitmapRangeTests::new_test_remove0();
+        test.Test(BitmapRangeTests::explicit_base, &mut uut);
     }
 }
