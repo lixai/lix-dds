@@ -1,7 +1,10 @@
 use bitintr::*;
 use std::cmp;
 
-type bitmap_type = [u32; BitmapRange::NITEMS];
+const NBITS: usize = 256;
+const NITEMS: usize = (NBITS + 31usize) / 32usize;
+
+type bitmap_type = [u32; NITEMS];
 
 #[derive(Debug)]
 pub struct BitmapRange {
@@ -13,25 +16,25 @@ pub struct BitmapRange {
 
 impl BitmapRange {
     pub const NBITS: usize = 256;
-    pub const NITEMS: usize = ((BitmapRange::NBITS + 31usize) / 32usize);
+    pub const NITEMS: usize = ((NBITS + 31usize) / 32usize);
 
     pub fn new() -> Self {
         let base: u32 = 0;
-        let range_max: u32 = base + (BitmapRange::NBITS as u32 - 1);
+        let range_max: u32 = base + (NBITS as u32 - 1);
         Self {
             base: base,
             range_max: range_max,
-            bitmap: [0; BitmapRange::NITEMS],
+            bitmap: [0; NITEMS],
             num_bits: 0,
         }
     }
 
     pub fn new_from_base(base: u32) -> Self {
-        let range_max: u32 = base + (BitmapRange::NBITS as u32 - 1);
+        let range_max = base + (NBITS as u32 - 1);
         Self {
             base: base,
             range_max: range_max,
-            bitmap: [0; BitmapRange::NITEMS],
+            bitmap: [0; NITEMS],
             num_bits: 0,
         }
     }
@@ -42,7 +45,7 @@ impl BitmapRange {
 
     pub fn from_base(&mut self, base: u32) {
         self.base = base;
-        self.range_max = base + (BitmapRange::NBITS as u32 - 1);
+        self.range_max = base + (NBITS as u32 - 1);
         self.num_bits = 0;
         self.bitmap.fill(0u32);
     }
@@ -61,7 +64,7 @@ impl BitmapRange {
         }
 
         self.base = base;
-        self.range_max = self.base + (BitmapRange::NBITS as u32 - 1);
+        self.range_max = self.base + (NBITS as u32 - 1);
     }
 
     pub fn empty(&self) -> bool {
@@ -116,8 +119,8 @@ impl BitmapRange {
     pub fn add_range(&mut self, from: &u32, to: &u32) {
         let full_mask = u32::MAX;
         let min = if self.base >= *from { self.base } else { *from };
-        let max = if *to >= self.base + BitmapRange::NBITS as u32 {
-            self.base + BitmapRange::NBITS as u32
+        let max = if *to >= self.base + NBITS as u32 {
+            self.base + NBITS as u32
         } else {
             *to
         };
@@ -175,7 +178,7 @@ impl BitmapRange {
     }
 
     pub fn bitmap_set(&mut self, num_bits: u32, bitmap: &bitmap_type) {
-        self.num_bits = cmp::min(num_bits, BitmapRange::NBITS as u32);
+        self.num_bits = cmp::min(num_bits, NBITS as u32);
         let num_items = (self.num_bits + 31u32) / 32u32;
         self.bitmap.fill(0u32);
         for i in 0..num_items {
@@ -233,7 +236,7 @@ impl BitmapRange {
             if n_bits == 0 {
                 // Shifting a multiple of 32 bits, just move the bitmap integers
                 self.bitmap.copy_within(n_items as usize.., 0);
-                self.bitmap[BitmapRange::NITEMS - n_items as usize..].fill(0);
+                self.bitmap[NITEMS - n_items as usize..].fill(0);
             } else {
                 // Example. Shifting 44 bits. Should shift one complete word and 12 bits.
                 // Need to iterate forward and take 12 bits from next word (shifting it 20 bits).
@@ -242,7 +245,7 @@ impl BitmapRange {
                 // bbbbbccc cccccddd ddddd000 dddddddd
                 // bbbbbccc cccccddd ddddd000 00000000
                 let overflow_bits = 32u32 - n_bits;
-                let last_index = BitmapRange::NITEMS - 1usize;
+                let last_index = NITEMS - 1usize;
                 let mut i: usize = 0;
                 let mut n: usize = n_items as usize;
                 while n < last_index {
@@ -255,13 +258,13 @@ impl BitmapRange {
                 // Last one does not have next word
                 self.bitmap[last_index - n_items as usize] = self.bitmap[last_index] << n_bits;
                 // Last n_items will become 0
-                self.bitmap[BitmapRange::NITEMS - n_items as usize..].fill(0);
+                self.bitmap[NITEMS - n_items as usize..].fill(0);
             }
         }
     }
 
     fn shift_map_right(&mut self, mut n_bits: u32) {
-        if n_bits as usize >= BitmapRange::NBITS {
+        if n_bits as usize >= NBITS {
             // Shifting more than total bitmap size. Clear whole bitmap.
             self.num_bits = 0;
             self.bitmap.fill(0u32);
@@ -269,7 +272,7 @@ impl BitmapRange {
             // Detect if highest bit will be dropped and take note, as we will need
             // to find new maximum bit in that case
             let new_num_bits = self.num_bits + n_bits;
-            let find_new_max = new_num_bits as usize > BitmapRange::NBITS;
+            let find_new_max = new_num_bits as usize > NBITS;
 
             // Div and mod by 32
             let n_items = n_bits >> 5;
@@ -277,7 +280,7 @@ impl BitmapRange {
             if n_bits == 0 {
                 // Shifting a multiple of 32 bits, just move the bitmap integers
                 self.bitmap
-                    .copy_within(..BitmapRange::NITEMS - n_items as usize, n_items as usize);
+                    .copy_within(..NITEMS - n_items as usize, n_items as usize);
                 self.bitmap[..n_items as usize].fill(0);
             } else {
                 // Example. Shifting 44 bits. Should shift one complete word and 12 bits.
@@ -288,7 +291,7 @@ impl BitmapRange {
                 // aaaaaaaa 000aaaaa aaabbbbb bbbccccc
                 // 00000000 000aaaaa aaabbbbb bbbccccc
                 let overflow_bits = 32 - n_bits;
-                let last_index = BitmapRange::NITEMS - 1;
+                let last_index = NITEMS - 1;
                 let mut i = last_index;
                 let mut n: usize = last_index - n_items as usize;
                 while n > 0 {
@@ -305,7 +308,7 @@ impl BitmapRange {
 
             self.num_bits = new_num_bits;
             if find_new_max {
-                self.calc_maximum_bit_set(BitmapRange::NITEMS as u32, n_items);
+                self.calc_maximum_bit_set(NITEMS as u32, n_items);
             }
         }
     }
@@ -350,7 +353,7 @@ mod tests {
                 max: 0,
                 num_bits: 0,
                 num_longs: 0,
-                bitmap: [0; BitmapRange::NITEMS],
+                bitmap: [0; NITEMS],
             }
         }
 
@@ -967,7 +970,7 @@ mod tests {
     fn serialization_test() {
         let mut num_bits: u32 = 0;
         let mut num_longs: u32 = 0;
-        let mut bitmap: bitmap_type = [0; BitmapRange::NITEMS];
+        let mut bitmap: bitmap_type = [0; NITEMS];
 
         // Populate the range using the test case
         let mut uut: BitmapRange = BitmapRange::new_from_base(BitmapRangeTests::explicit_base);
