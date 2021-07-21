@@ -33,104 +33,51 @@ impl InstanceHandle_t {
             return &*g;
         }
     }
-
-    pub const iHandle2GUID: InstanceHandle_t = InstanceHandle_t {
-        value: [0; InstanceHandle_t::SIZE]
-    };
 }
 
-fn iHandle2GUID_1(ihandle: &InstanceHandle_t) -> GUID_t {
-    let mut guid = GUID_t::unknown();
-    for i in 0..16 {
-        if i < 12 {
-            guid.guidPrefix.value[i] = ihandle.value[i];
-        } else {
-            guid.entityId.value[i - 12] = ihandle.value[i];
-        }
-    }
-    return guid;
+/**
+ * Convert InstanceHandle_t to GUID
+ * @param guid GUID to store the results
+ * @param ihandle InstanceHandle_t to copy
+ */
+trait InstanceHandle_t_to_GUID_1 {
+    fn iHandle2GUID(guid: &mut GUID_t, ihandle:&InstanceHandle_t);
 }
 
-impl FnOnce<(&InstanceHandle_t,)> for InstanceHandle_t {
-    type Output = GUID_t;
-    #[inline(always)]
-    extern "rust-call" fn call_once(self, args: (&InstanceHandle_t,)) -> Self::Output {
-        iHandle2GUID_1.call_once(args)
-    }
+/**
+ * Convert InstanceHandle_t to GUID
+ * @param ihandle InstanceHandle_t to store the results
+ * @return GUID_t
+ */
+trait InstanceHandle_t_to_GUID_2 {
+    fn iHandle2GUID(ihandle: &InstanceHandle_t) -> GUID_t;
 }
 
-impl FnMut<(&InstanceHandle_t,)> for InstanceHandle_t {
-    #[inline(always)]
-    extern "rust-call" fn call_mut(&mut self, args: (&InstanceHandle_t,)) -> Self::Output {
-        iHandle2GUID_1.call_once(args)
-    }
-}
-
-impl Fn<(&InstanceHandle_t,)> for InstanceHandle_t {
-    #[inline(always)]
-    extern "rust-call" fn call(&self, args: (&InstanceHandle_t,)) -> Self::Output {
-        iHandle2GUID_1.call_once(args)
-    }
-}
-
-impl From<InstanceHandle_t> for fn(&InstanceHandle_t) -> GUID_t {
-    fn from(_: InstanceHandle_t) -> fn(&InstanceHandle_t) -> GUID_t {
-        iHandle2GUID_1
-    }
-}
-
-fn iHandle2GUID_2(guid: &mut GUID_t, ihandle: &InstanceHandle_t) {
-    for i in 0..16 {
-        if i < 12 {
-            guid.guidPrefix.value[i] = ihandle.value[i];
-        } else {
-            guid.entityId.value[i - 12] = ihandle.value[i];
-        }
-    }
-}
-
-impl FnOnce<(&mut GUID_t, &InstanceHandle_t,)> for InstanceHandle_t {
-    type Output = ();
-    #[inline(always)]
-    extern "rust-call" fn call_once(self, args: (&mut GUID_t, &InstanceHandle_t,)) -> Self::Output {
-        iHandle2GUID_2.call_once(args)
-    }
-}
-
-impl FnMut<(&mut GUID_t, &InstanceHandle_t,)> for InstanceHandle_t {
-    #[inline(always)]
-    extern "rust-call" fn call_mut(&mut self, args: (&mut GUID_t, &InstanceHandle_t,)) -> Self::Output {
-        iHandle2GUID_2.call_once(args)
-    }
-}
-
-impl Fn<(&mut GUID_t, &InstanceHandle_t,)> for InstanceHandle_t {
-    #[inline(always)]
-    extern "rust-call" fn call(&self, args: (&mut GUID_t, &InstanceHandle_t,)) -> Self::Output {
-        iHandle2GUID_2.call_once(args)
-    }
-}
-
-impl From<InstanceHandle_t> for fn(&mut GUID_t, &InstanceHandle_t)  {
-    fn from(_: InstanceHandle_t) -> fn(&mut GUID_t, &InstanceHandle_t) {
-        iHandle2GUID_2
-    }
-}
-
-impl From<&GUID_t> for InstanceHandle_t {
-    fn from(guid: &GUID_t) -> Self {
-        let mut value: [u8; InstanceHandle_t::SIZE] = [0; InstanceHandle_t::SIZE];
+impl InstanceHandle_t_to_GUID_1 for InstanceHandle_t {
+    fn iHandle2GUID(guid: &mut GUID_t, ihandle: &InstanceHandle_t) {
         for i in 0..16 {
             if i < 12 {
-                value[i] = guid.guidPrefix.value[i];
+                guid.guidPrefix.value[i] = ihandle.value[i];
             } else {
-                value[i] = guid.entityId.value[i - 12];
+                guid.entityId.value[i - 12] = ihandle.value[i];
             }
         }
-        InstanceHandle_t { value }
     }
 }
 
+impl InstanceHandle_t_to_GUID_2 for InstanceHandle_t {
+    fn iHandle2GUID(ihandle: &InstanceHandle_t) -> GUID_t {
+        let mut guid: GUID_t = GUID_t { guidPrefix: Default::default(), entityId: Default::default() };
+        for i in 0..16 {
+            if i < 12 {
+                guid.guidPrefix.value[i] = ihandle.value[i];
+            } else {
+                guid.entityId.value[i - 12] = ihandle.value[i];
+            }
+        }
+        return guid;
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -144,10 +91,10 @@ mod tests {
         let guid_ref = instance_handle_t.as_guid_ref();
 
         let mut guid: GUID_t = GUID_t::unknown();
-        InstanceHandle_t::iHandle2GUID(&mut guid, &instance_handle_t);
+        <InstanceHandle_t as InstanceHandle_t_to_GUID_1>::iHandle2GUID(&mut guid, &instance_handle_t);
         assert_eq!(*guid_ref == guid, true);
 
-        guid = InstanceHandle_t::iHandle2GUID(&instance_handle_t);
+        guid = <InstanceHandle_t as InstanceHandle_t_to_GUID_2>::iHandle2GUID(&instance_handle_t);
         assert_eq!(*guid_ref == guid, true);
     }
 }
