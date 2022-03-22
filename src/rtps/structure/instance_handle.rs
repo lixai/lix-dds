@@ -79,6 +79,20 @@ impl InstanceHandle_t_to_GUID_2 for InstanceHandle_t {
     }
 }
 
+/*impl PartialOrd for InstanceHandle_t {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.value == other.value {
+            return Some(Ordering::Equal);
+        } else if self.value >= other.value {
+            return Some(Ordering::Greater);
+        } else if self.value <= other.value {
+            return Some(Ordering::Less);
+        } else {
+            None
+        }
+    }
+}*/
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -96,5 +110,25 @@ mod tests {
 
         guid = <InstanceHandle_t as InstanceHandle_t_to_GUID_2>::iHandle2GUID(&instance_handle_t);
         assert_eq!(*guid_ref == guid, true);
+    }
+
+    #[test]
+    fn comparison_tests() {
+        let mut v1 = InstanceHandle_t::c_InstanceHandle_Unknown;
+        let mut v2 = InstanceHandle_t::new();
+
+        assert!(v1 == v2);
+
+        v1.value[0] = 1;
+        assert!(v1 > v2);
+        assert!(v1 >= v2);
+
+        v2.value[0] = 1;
+        assert!(v1 >= v2);
+        assert!(v1 <= v2);
+
+        v2.value[1] = 1;
+        assert!(v1 < v2);
+        assert!(v1 <= v2);
     }
 }
