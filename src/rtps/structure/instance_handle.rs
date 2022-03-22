@@ -79,19 +79,6 @@ impl InstanceHandle_t_to_GUID_2 for InstanceHandle_t {
     }
 }
 
-/*impl PartialOrd for InstanceHandle_t {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        if self.value == other.value {
-            return Some(Ordering::Equal);
-        } else if self.value >= other.value {
-            return Some(Ordering::Greater);
-        } else if self.value <= other.value {
-            return Some(Ordering::Less);
-        } else {
-            None
-        }
-    }
-}*/
 
 #[cfg(test)]
 mod tests {
