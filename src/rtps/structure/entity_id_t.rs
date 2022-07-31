@@ -154,7 +154,9 @@ impl EntityId_t {
     }
 
     pub fn new() -> Self {
-        EntityId_t { value: [0; EntityId_t::SIZE] }
+        EntityId_t {
+            value: [0; EntityId_t::SIZE],
+        }
     }
 
     pub fn hash(k: &EntityId_t) -> usize {

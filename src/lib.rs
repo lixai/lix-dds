@@ -5,8 +5,8 @@
 #![allow(non_snake_case)]
 
 extern crate bit_set;
-extern crate speedy;
 extern crate bitintr;
+extern crate speedy;
 
 #[macro_use]
 mod rtps;

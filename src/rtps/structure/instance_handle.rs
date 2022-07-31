@@ -41,7 +41,7 @@ impl InstanceHandle_t {
  * @param ihandle InstanceHandle_t to copy
  */
 trait InstanceHandle_t_to_GUID_1 {
-    fn iHandle2GUID(guid: &mut GUID_t, ihandle:&InstanceHandle_t);
+    fn iHandle2GUID(guid: &mut GUID_t, ihandle: &InstanceHandle_t);
 }
 
 /**
@@ -67,7 +67,10 @@ impl InstanceHandle_t_to_GUID_1 for InstanceHandle_t {
 
 impl InstanceHandle_t_to_GUID_2 for InstanceHandle_t {
     fn iHandle2GUID(ihandle: &InstanceHandle_t) -> GUID_t {
-        let mut guid: GUID_t = GUID_t { guidPrefix: Default::default(), entityId: Default::default() };
+        let mut guid: GUID_t = GUID_t {
+            guidPrefix: Default::default(),
+            entityId: Default::default(),
+        };
         for i in 0..16 {
             if i < 12 {
                 guid.guidPrefix.value[i] = ihandle.value[i];
@@ -78,7 +81,6 @@ impl InstanceHandle_t_to_GUID_2 for InstanceHandle_t {
         return guid;
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -92,7 +94,10 @@ mod tests {
         let guid_ref = instance_handle_t.as_guid_ref();
 
         let mut guid: GUID_t = GUID_t::unknown();
-        <InstanceHandle_t as InstanceHandle_t_to_GUID_1>::iHandle2GUID(&mut guid, &instance_handle_t);
+        <InstanceHandle_t as InstanceHandle_t_to_GUID_1>::iHandle2GUID(
+            &mut guid,
+            &instance_handle_t,
+        );
         assert_eq!(*guid_ref == guid, true);
 
         guid = <InstanceHandle_t as InstanceHandle_t_to_GUID_2>::iHandle2GUID(&instance_handle_t);

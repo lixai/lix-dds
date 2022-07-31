@@ -1,5 +1,5 @@
-use crate::rtps::structure::guid_prefix_t::GuidPrefix_t;
 use crate::rtps::structure::entity_id_t::EntityId_t;
+use crate::rtps::structure::guid_prefix_t::GuidPrefix_t;
 
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct GUID_t {
@@ -10,7 +10,7 @@ pub struct GUID_t {
 impl GUID_t {
     pub const c_Guid_Unknown: GUID_t = GUID_t {
         guidPrefix: GuidPrefix_t::c_GuidPrefix_Unknown,
-        entityId: EntityId_t::c_EntityId_Unknown
+        entityId: EntityId_t::c_EntityId_Unknown,
     };
 }
 
@@ -18,7 +18,7 @@ impl GUID_t {
     pub fn unknown() -> Self {
         GUID_t {
             guidPrefix: GuidPrefix_t::unknown(),
-            entityId: EntityId_t::unknown()
+            entityId: EntityId_t::unknown(),
         }
     }
 
@@ -49,11 +49,11 @@ mod tests {
 
         let id3 = GUID_t {
             guidPrefix: GuidPrefix_t::unknown(),
-            entityId: EntityId_t::unknown()
+            entityId: EntityId_t::unknown(),
         };
         let mut id4 = GUID_t {
             guidPrefix: GuidPrefix_t::unknown(),
-            entityId: EntityId_t::unknown()
+            entityId: EntityId_t::unknown(),
         };
         id4.entityId = EntityId_t::c_EntityId_SPDPReader;
         assert_eq!(id3 < id4, true);
@@ -61,15 +61,19 @@ mod tests {
 
         let mut id5 = GUID_t {
             guidPrefix: GuidPrefix_t::unknown(),
-            entityId: EntityId_t::unknown()
+            entityId: EntityId_t::unknown(),
         };
-        id5.guidPrefix.value = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB,];
+        id5.guidPrefix.value = [
+            0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB,
+        ];
         assert_eq!(id3 < id5, true);
         assert_eq!(id3 <= id5, true);
 
         let mut id6 = GUID_t::unknown();
         let mut id7 = GUID_t::unknown();
-        id6.guidPrefix.value = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB];
+        id6.guidPrefix.value = [
+            0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB,
+        ];
         id7.entityId = EntityId_t::c_EntityId_SPDPReader;
         assert_eq!(id6 > id7, true);
         assert_eq!(id6 >= id7, true);
@@ -79,21 +83,27 @@ mod tests {
     fn is_on_same_host_and_process_test() {
         let mut id1 = GUID_t {
             guidPrefix: GuidPrefix_t::unknown(),
-            entityId: EntityId_t::unknown()
+            entityId: EntityId_t::unknown(),
         };
-        id1.guidPrefix.value = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB,];
+        id1.guidPrefix.value = [
+            0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB,
+        ];
 
         let mut id2 = GUID_t {
             guidPrefix: GuidPrefix_t::unknown(),
-            entityId: EntityId_t::unknown()
+            entityId: EntityId_t::unknown(),
         };
-        id2.guidPrefix.value = [0x00, 0x11, 0x22, 0x33, 0x44, 0x56, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB,];
+        id2.guidPrefix.value = [
+            0x00, 0x11, 0x22, 0x33, 0x44, 0x56, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB,
+        ];
 
         let mut id3 = GUID_t {
             guidPrefix: GuidPrefix_t::unknown(),
-            entityId: EntityId_t::unknown()
+            entityId: EntityId_t::unknown(),
         };
-        id3.guidPrefix.value = [0x00, 0x11, 0x22, 0x33, 0x44, 0x56, 0x66, 0x77, 0x89, 0x99, 0xAA, 0xBB,];
+        id3.guidPrefix.value = [
+            0x00, 0x11, 0x22, 0x33, 0x44, 0x56, 0x66, 0x77, 0x89, 0x99, 0xAA, 0xBB,
+        ];
 
         assert_eq!(id1.is_on_same_host_as(&id2), true);
         assert_eq!(id2.is_on_same_process_as(&id3), true);
@@ -104,7 +114,7 @@ mod tests {
     fn is_builtin_test() {
         let mut id1 = GUID_t {
             guidPrefix: GuidPrefix_t::unknown(),
-            entityId: EntityId_t::unknown()
+            entityId: EntityId_t::unknown(),
         };
 
         id1.entityId.value[3] = 0xc0;

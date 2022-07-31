@@ -5,3 +5,4 @@ pub mod guid;
 pub mod guid_prefix_t;
 pub mod instance_handle;
 pub mod sequence_number;
+pub mod serialized_payload;

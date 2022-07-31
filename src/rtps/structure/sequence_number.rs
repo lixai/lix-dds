@@ -355,7 +355,7 @@ mod tests {
 
         seq.high = i32::MAX - 1;
         seq.low = 0;
-        seq = seq +  i32::MAX as u32;
+        seq = seq + i32::MAX as u32;
         expected_seq.high = i32::MAX - 1;
         expected_seq.low = i32::MAX as u32;
         assert_eq!(seq, expected_seq);
