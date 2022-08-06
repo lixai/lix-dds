@@ -42,43 +42,45 @@ impl SerializedPayload_t {
     //!Size in bytes of the representation header as specified in the RTPS 2.3 specification chapter 10.
     pub const representation_header_size: usize = 4;
 
-    pub fn reserve(&mut self, new_size: u32) {
-        if new_size <= self.max_size {
-            return;
-        }
+    /*
+        pub fn reserve(&mut self, new_size: u32) {
+            if new_size <= self.max_size {
+                return;
+            }
 
-        match self.data {
-            None => {
-                self.data = Box::new();
-                data = (u8*)calloc(new_size, sizeof(octet));
-                if (!data) {
-                    throw std::bad_alloc();
+            match self.data {
+                None => {
+                    self.data = Box::new();
+                    data = (u8*)calloc(new_size, sizeof(octet));
+                    if (!data) {
+                        throw std::bad_alloc();
+                    }
+                }
+
+                Some(x) => {
+
                 }
             }
 
-            Some(x) => {
-
+            if data == nullptr {
+                data = (octet*)calloc(new_size, sizeof(octet));
+                if (!data)
+                {
+                    throw std::bad_alloc();
+                }
             }
-        }
-
-        if data == nullptr {
-            data = (octet*)calloc(new_size, sizeof(octet));
-            if (!data)
+            else
             {
-                throw std::bad_alloc();
+                void* old_data = data;
+                data = (octet*)realloc(data, new_size);
+                if (!data)
+                {
+                    free(old_data);
+                    throw std::bad_alloc();
+                }
+                memset(data + max_size, 0, (new_size - max_size) * sizeof(octet));
             }
+            max_size = new_size;
         }
-        else
-        {
-            void* old_data = data;
-            data = (octet*)realloc(data, new_size);
-            if (!data)
-            {
-                free(old_data);
-                throw std::bad_alloc();
-            }
-            memset(data + max_size, 0, (new_size - max_size) * sizeof(octet));
-        }
-        max_size = new_size;
-    }
+    */
 }
