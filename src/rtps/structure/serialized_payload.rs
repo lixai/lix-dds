@@ -13,17 +13,18 @@ const DEFAULT_ENCAPSULATION: u16 = CDR_LE;
 #[cfg(target_endian = "big")]
 const PL_DEFAULT_ENCAPSULATION: u16 = PL_CDR_BE;
 
+#[derive(Debug)]
 pub struct SerializedPayload_t {
     // Encapsulation of the data as suggested in the RTPS 2.1 specification chapter 10.
     encapsulation: u16,
     // Actual length of the data
-    length: u32,
+    length: usize,
     // Pointer to the data.
-    data: Option<Box<u8>>,
+    data: Vec<u8>,
     // Maximum size of the payload
-    max_size: u32,
+    max_size: usize,
     // Position when reading
-    pos: u32,
+    pos: usize,
 }
 
 impl Default for SerializedPayload_t {
@@ -31,10 +32,25 @@ impl Default for SerializedPayload_t {
         SerializedPayload_t {
             encapsulation: CDR_BE,
             length: 0,
-            data: None,
+            data: vec![],
             max_size: 0,
             pos: 0,
         }
+    }
+}
+
+impl PartialEq for SerializedPayload_t {
+    fn eq(&self, other: &Self) -> bool {
+        if self.encapsulation != other.encapsulation || self.length != other.length {
+            return false;
+        }
+
+        for n in 0..self.length {
+            if self.data[n] != other.data[n] {
+                return false;
+            }
+        }
+        return true;
     }
 }
 
@@ -43,44 +59,86 @@ impl SerializedPayload_t {
     pub const representation_header_size: usize = 4;
 
     /*
-        pub fn reserve(&mut self, new_size: u32) {
-            if new_size <= self.max_size {
-                return;
-            }
+     * Copy another structure (including allocating new space for the data.)
+     * @param[in] serData Pointer to the structure to copy
+     * @param with_limit if true, the function will fail when providing a payload too big
+     * @return True if correct
+     */
+    pub fn copy(&mut self, serData: &SerializedPayload_t, with_limit: bool) -> bool {
+        self.length = serData.length;
 
-            match self.data {
-                None => {
-                    self.data = Box::new();
-                    data = (u8*)calloc(new_size, sizeof(octet));
-                    if (!data) {
-                        throw std::bad_alloc();
-                    }
-                }
-
-                Some(x) => {
-
-                }
+        if serData.length > self.max_size {
+            if with_limit {
+                println!("with_limit false");
+                return false;
+            } else {
+                self.reserve(serData.length);
             }
-
-            if data == nullptr {
-                data = (octet*)calloc(new_size, sizeof(octet));
-                if (!data)
-                {
-                    throw std::bad_alloc();
-                }
-            }
-            else
-            {
-                void* old_data = data;
-                data = (octet*)realloc(data, new_size);
-                if (!data)
-                {
-                    free(old_data);
-                    throw std::bad_alloc();
-                }
-                memset(data + max_size, 0, (new_size - max_size) * sizeof(octet));
-            }
-            max_size = new_size;
         }
-    */
+        self.encapsulation = serData.encapsulation;
+        if self.length == 0 {
+            return true;
+        }
+        self.data.resize(self.length, 0);
+        let t = &serData.data[0..self.length];
+        self.data.copy_from_slice(t);
+        return true;
+    }
+
+    /*
+     * Allocate new space for fragmented data
+     * @param[in] serData Pointer to the structure to copy
+     * @return True if correct
+     */
+    pub fn reserve_fragmented(&mut self, serData: &SerializedPayload_t) -> bool {
+        self.length = serData.length;
+        self.max_size = serData.length;
+        self.encapsulation = serData.encapsulation;
+        self.data.resize(self.length, 0);
+        return true;
+    }
+
+    // Empty the payload
+    pub fn empty(&mut self) {
+        self.length = 0;
+        self.encapsulation = CDR_BE;
+        self.max_size = 0;
+        if !self.data.is_empty() {
+            self.data.clear();
+        }
+    }
+
+    pub fn reserve(&mut self, new_size: usize) {
+        if new_size <= self.max_size {
+            return;
+        }
+
+        self.data.resize(new_size, 0);
+        self.max_size = new_size;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn eq_operator_test() {
+        let mut sp1 = SerializedPayload_t::default();
+        let mut sp2 = SerializedPayload_t::default();
+        assert_eq!(sp1, sp2);
+
+        sp1.reserve(8);
+        assert_eq!(sp1, sp2);
+
+        sp1.length = 1;
+        sp1.data[0] = 1;
+
+        assert_ne!(sp1, sp2);
+
+        assert!(!sp2.copy(&sp1, true));
+        assert!(sp2.copy(&sp1, false));
+
+        assert_eq!(sp1, sp2);
+    }
 }
