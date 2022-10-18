@@ -1,5 +1,5 @@
-use crate::rtps::structure::entity_id_t::EntityId_t;
-use crate::rtps::structure::guid_prefix_t::GuidPrefix_t;
+use crate::rtps::common::entity_id_t::EntityId_t;
+use crate::rtps::common::guid_prefix_t::GuidPrefix_t;
 
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct GUID_t {

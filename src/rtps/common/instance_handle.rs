@@ -1,4 +1,4 @@
-use crate::rtps::structure::guid::GUID_t;
+use crate::rtps::common::guid::GUID_t;
 
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct InstanceHandle_t {
