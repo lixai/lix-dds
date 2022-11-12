@@ -1,7 +1,9 @@
 pub mod change_kind_t;
 pub mod entity_id_t;
+pub mod error;
 pub mod guid;
 pub mod guid_prefix_t;
 pub mod instance_handle;
+pub mod locator;
 pub mod sequence_number;
 pub mod serialized_payload;
