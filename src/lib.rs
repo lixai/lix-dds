@@ -9,9 +9,9 @@ extern crate bitintr;
 extern crate speedy;
 
 #[macro_use]
-mod rtps;
-mod base;
-mod dds;
+pub mod rtps;
+pub mod base;
+pub mod dds;
 
 #[macro_use]
 extern crate lazy_static;

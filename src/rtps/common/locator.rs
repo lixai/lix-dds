@@ -1,8 +1,8 @@
+use crate::base::net::lookup::*;
 use crate::rtps::common::error::*;
 use crate::rtps::utils::ip_locator::*;
 use crate::LOCATOR_ADDRESS_INVALID;
 use core::str::FromStr;
-use dns_lookup::*;
 use std::string::ToString;
 use substring::Substring;
 
@@ -202,13 +202,14 @@ impl FromStr for Locator_t {
         let mut loc = Locator_t::default();
 
         // Locator info
-        let mut kind: i32 = LOCATOR_KIND_INVALID;
+        //let mut kind: i32 = LOCATOR_KIND_INVALID;
+        let kind: i32;
         let mut port: u32 = LOCATOR_PORT_INVALID;
-        let mut address: String = "".to_string();
+        let mut address: String;
 
         // Check the locator kind
         let str_kind: &str;
-        let mut str_kind_index: usize = 0;
+        let str_kind_index: usize;
         if let Some(i) = s.find(":") {
             str_kind_index = i;
             str_kind = s.substring(0, str_kind_index);
@@ -225,7 +226,7 @@ impl FromStr for Locator_t {
             _ => kind = LOCATOR_KIND_INVALID,
         }
 
-        // Get address in string
+        // Get address in strings
         let str_address: &str;
         if let Some(i) = s.find("]") {
             // Ignore chars :[
@@ -233,12 +234,13 @@ impl FromStr for Locator_t {
         } else {
             return Err(RtpsError::new("Get address"));
         };
+        address = str_address.to_string();
 
         // check if this is a valid IPv4 or IPv6 and call DNS if not
         if (kind == LOCATOR_KIND_UDPv4 || kind == LOCATOR_KIND_TCPv4) && !isIPv4(str_address) {
-            match lookup_host(str_address) {
+            match lookup_ipv4(str_address) {
                 Ok(i) => {
-                    address = i[0].to_string();
+                    address = i;
                 }
                 Err(_w) => {
                     loc.kind = LOCATOR_KIND_INVALID;
@@ -248,9 +250,9 @@ impl FromStr for Locator_t {
         }
 
         if (kind == LOCATOR_KIND_UDPv6 || kind == LOCATOR_KIND_TCPv6) && !isIPv6(str_address) {
-            match lookup_host(str_address) {
+            match lookup_ipv6(str_address) {
                 Ok(i) => {
-                    address = i[0].to_string();
+                    address = i;
                 }
                 Err(_w) => {
                     loc.kind = LOCATOR_KIND_INVALID;
@@ -314,6 +316,8 @@ fn IsAddressDefined(loc: &Locator_t) -> bool {
 fn IsLocatorValid(loc: &Locator_t) -> bool {
     return 0 <= loc.kind;
 }
+
+type LocatorList = std::vec::Vec<Locator_t>;
 
 #[cfg(test)]
 mod tests {
@@ -407,5 +411,45 @@ mod tests {
 
         locator.kind = LOCATOR_KIND_SHM;
         assert_eq!("SHM:[_]:1", locator.to_string());
+    }
+
+    #[test]
+    fn from_str_test() {
+        // kind:[address]:port
+        let mut loc1 = Locator_t::new(LOCATOR_KIND_UDPv4, 1, [0xFF_u8; 16]);
+        let mut loc2 = Locator_t::from_str(&loc1.to_string()).unwrap();
+        assert_eq!(loc1.to_string(), loc2.to_string());
+
+        loc1 = Locator_t::new(LOCATOR_KIND_TCPv4, 1, [0xFF_u8; 16]);
+        loc2 = Locator_t::from_str(&loc1.to_string()).unwrap();
+        assert_eq!(loc1.to_string(), loc2.to_string());
+
+        loc1 = Locator_t::new(LOCATOR_KIND_UDPv6, 1, [0xFF_u8; 16]);
+        loc2 = Locator_t::from_str(&loc1.to_string()).unwrap();
+        assert_eq!(loc1.to_string(), loc2.to_string());
+
+        loc1 = Locator_t::new(LOCATOR_KIND_TCPv6, 1, [0xFF_u8; 16]);
+        loc2 = Locator_t::from_str(&loc1.to_string()).unwrap();
+        assert_eq!(loc1.to_string(), loc2.to_string());
+
+        loc1 = Locator_t::new(LOCATOR_KIND_SHM, 1, [0xFF_u8; 16]);
+        loc2 = Locator_t::from_str(&loc1.to_string()).unwrap();
+        assert_eq!(loc1.to_string(), loc2.to_string());
+
+        loc1 = Locator_t::new(LOCATOR_KIND_INVALID, 1, [0xFF_u8; 16]);
+        loc2 = Locator_t::from_str(&loc1.to_string()).unwrap();
+        assert_eq!(loc1.to_string(), loc2.to_string());
+
+        loc2 = Locator_t::from_str("UDPv4:[localhost]:2").unwrap();
+        assert_eq!("UDPv4:[127.0.0.1]:2", loc2.to_string());
+
+        loc2 = Locator_t::from_str("TCPv4:[localhost]:2").unwrap();
+        assert_eq!("TCPv4:[127.0.0.1]:2", loc2.to_string());
+
+        loc2 = Locator_t::from_str("UDPv6:[localhost]:2").unwrap();
+        assert_eq!("UDPv6:[::1]:2", loc2.to_string());
+
+        loc2 = Locator_t::from_str("TCPv6:[localhost]:2").unwrap();
+        assert_eq!("TCPv6:[::1]:2", loc2.to_string());
     }
 }
